@@ -1,6 +1,8 @@
 import pygame
 from pygame.locals import *
 import socket
+import time
+import sys
 
 class Player:
     width = height = 50
@@ -58,12 +60,39 @@ class Game:
         self.last_obstacle_x = 0
         self.server_address = ("172.28.1.81", 36695)  
 
+        self.reconnect_attempts = 3
+        self.reconnect_delay = 5  # seconds
+
+    def connect_to_server(self):
+        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        connected = False
+        while not connected and self.reconnect_attempts > 0:
+            try:
+                print("Attempting to connect to server...")
+                self.client_socket.connect(self.server_address)
+                print("Connected to server")
+                connected = True
+            except Exception as e:
+                print("Connection failed:", e)
+                print(f"Reconnecting in {self.reconnect_delay} seconds...")
+                time.sleep(self.reconnect_delay)
+                self.reconnect_attempts -= 1
+
+        if not connected:
+            print("Failed to connect to server after multiple attempts.")
+            pygame.quit()
+            sys.exit()
+
     def send_message(self, message):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
-            client_socket.connect(self.server_address)
-            client_socket.sendall(message.encode())
-            data = client_socket.recv(1024)
+        try:
+            self.client_socket.sendall(message.encode())
+            data = self.client_socket.recv(1024)
             return data.decode()
+        except Exception as e:
+            print("Error sending/receiving data:", e)
+            self.client_socket.close()
+            self.connect_to_server()
+            return None
 
     def generate_obstacles(self):
         reply = self.send_message("generate_obstacles")
@@ -90,6 +119,7 @@ class Game:
         self.last_obstacle_x = 0
 
     def run(self):
+        self.connect_to_server()  # Connect to the server
         clock = pygame.time.Clock()
         run = True
         while run:

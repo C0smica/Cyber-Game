@@ -26,7 +26,7 @@ def threaded_client(conn):
         try:
             data = conn.recv(2048)
             if not data:
-                conn.sendall(str.encode("Goodbye"))
+                print("Client disconnected")
                 break
             else:
                 message = data.decode('utf-8')
