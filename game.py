@@ -76,8 +76,17 @@ class Game:
         if obstacles_data:
             for obstacle_info in obstacles_data:
                 x, gap_y, gap = obstacle_info
+                # Adjust x-coordinate to the right of the player
+                x += self.width // 2
                 obstacles.append(Obstacle(x, gap_y, gap))
         return obstacles
+    
+    def check_for_new_obstacle(self):
+        if self.obstacles:
+            last_obstacle = self.obstacles[-1]
+            if self.player.x > last_obstacle.x + self.width // 2:
+                return True
+        return False
 
     def run(self):
         clock = pygame.time.Clock()
@@ -98,6 +107,10 @@ class Game:
             self.camera_x = self.player.x - self.width // 3
 
             self.obstacles = self.generate_obstacles()
+            
+            if self.check_for_new_obstacle():
+                new_obstacles = self.generate_obstacles()
+                self.obstacles.extend(new_obstacles)
 
             self.canvas.draw_background()
             for obstacle in self.obstacles:
