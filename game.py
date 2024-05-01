@@ -34,12 +34,11 @@ class Player:
             self.velocity_y = 0
 
 class Obstacle:
-    width = 50
-    gap = 200  
-
-    def __init__(self, x, gap_y):
+    def __init__(self, x, gap_y, gap):
         self.x = x
         self.gap_y = gap_y
+        self.gap = gap
+        self.width = 50
         self.top_height = self.gap_y
         self.bottom_height = 500 - self.gap_y - self.gap
 
@@ -72,7 +71,13 @@ class Game:
             return None
 
     def generate_obstacles(self):
-        return self.send_message("generate_obstacles")
+        obstacles_data = self.send_message("generate_obstacles")
+        obstacles = []
+        if obstacles_data:
+            for obstacle_info in obstacles_data:
+                x, gap_y, gap = obstacle_info
+                obstacles.append(Obstacle(x, gap_y, gap))
+        return obstacles
 
     def run(self):
         clock = pygame.time.Clock()
