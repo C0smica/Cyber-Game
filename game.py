@@ -1,8 +1,7 @@
 import pygame
 from pygame.locals import *
 import socket
-import time
-import sys
+import pickle
 
 class Player:
     width = height = 50
@@ -55,71 +54,27 @@ class Game:
         self.player = Player(50, h // 2)
         self.obstacles = []
         self.score = 0
-        self.canvas = Canvas(self.width, self.height, "Sky Jumper")
+        self.canvas = Canvas(self.width, self.height, "Flappy Bird")
         self.camera_x = 0
         self.last_obstacle_x = 0
-        self.server_address = ("172.28.1.81", 36695)  
+        self.server_address = ('127.0.0.1', 12345)
 
-        self.reconnect_attempts = 3
-        self.reconnect_delay = 5  # seconds
-
-    def connect_to_server(self):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        connected = False
-        while not connected and self.reconnect_attempts > 0:
-            try:
-                print("Attempting to connect to server...")
-                self.client_socket.connect(self.server_address)
-                print("Connected to server")
-                connected = True
-            except Exception as e:
-                print("Connection failed:", e)
-                print(f"Reconnecting in {self.reconnect_delay} seconds...")
-                time.sleep(self.reconnect_delay)
-                self.reconnect_attempts -= 1
-
-        if not connected:
-            print("Failed to connect to server after multiple attempts.")
-            pygame.quit()
-            sys.exit()
+        self.client_socket.connect(self.server_address)
 
     def send_message(self, message):
         try:
             self.client_socket.sendall(message.encode())
-            data = self.client_socket.recv(1024)
-            return data.decode()
+            data = self.client_socket.recv(4096)
+            return pickle.loads(data)
         except Exception as e:
             print("Error sending/receiving data:", e)
-            self.client_socket.close()
-            self.connect_to_server()
             return None
 
     def generate_obstacles(self):
-        reply = self.send_message("generate_obstacles")
-        print("Received obstacle data:", reply)
-        data = reply.split(':')
-        if len(data) == 2:
-            gap_y, x = map(int, data)
-            self.obstacles.append(Obstacle(x, gap_y))
-        else:
-            print("Invalid data received:", reply)
-
-    def check_collision(self):
-        reply = self.send_message("check_collision")
-        return reply == "collision"
-
-    def update_score(self):
-        self.send_message("update_score")
-
-    def restart(self):
-        self.player.x = self.player.startx
-        self.player.y = self.player.starty
-        self.obstacles.clear()
-        self.score = 0
-        self.last_obstacle_x = 0
+        return self.send_message("generate_obstacles")
 
     def run(self):
-        self.connect_to_server()  # Connect to the server
         clock = pygame.time.Clock()
         run = True
         while run:
@@ -133,31 +88,18 @@ class Game:
                         run = False
                     if event.key == K_SPACE:
                         self.player.jump()
-                    if event.key == K_r:
-                        self.restart()
 
             self.player.update()
             self.camera_x = self.player.x - self.width // 3
 
-            for obstacle in self.obstacles:
-                if obstacle.collide(self.player):
-                    self.restart()
-                    break
+            self.obstacles = self.generate_obstacles()
 
             self.canvas.draw_background()
             for obstacle in self.obstacles:
                 obstacle.draw(self.canvas.get_canvas(), self.camera_x)
             self.player.draw(self.canvas.get_canvas(), self.camera_x)
 
-            self.canvas.draw_text("Score: " + str(self.score), 20, 10, 10)
-
             self.canvas.update()
-
-            # Check if player passed an obstacle
-            for obstacle in self.obstacles:
-                if obstacle.x + obstacle.width < self.player.x and obstacle.x + obstacle.width > self.player.x - 2:
-                    self.score += 1
-                    self.generate_obstacles()  # Request new obstacles from the server
 
         pygame.quit()
 
@@ -173,12 +115,6 @@ class Canvas:
 
     def draw_background(self):
         self.screen.fill((135, 206, 250))
-
-    def draw_text(self, text, size, x, y):
-        pygame.font.init()
-        font = pygame.font.SysFont("comicsans", size)
-        render = font.render(text, 1, (255, 255, 255))
-        self.screen.blit(render, (x, y))
 
     def get_canvas(self):
         return self.screen
