@@ -10,9 +10,11 @@ PORT = 12345
 def generate_obstacles():
     obstacles = []
     for _ in range(3):
-        obstacle_height = random.randint(1, 10)
-        obstacle_y = random.randint(1, 20 - obstacle_height)  # Adjust according to your game screen size
-        obstacles.append((30, obstacle_y, obstacle_height))
+        temp = 500 - 200 - 100
+        obstacle_y = random.randint(100, temp)
+        obstacle_height = 200  # Adjust according to your game screen size
+        x = 50
+        obstacles.append((x, obstacle_y, obstacle_height))
     return obstacles
 
 def threaded_client(conn):
@@ -35,7 +37,7 @@ def main():
     # Create a socket
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
         server_socket.bind((HOST, PORT))
-        server_socket.listen()
+        server_socket.listen(30)
         print("Server is listening...")
 
         while True:
