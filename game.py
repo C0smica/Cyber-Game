@@ -41,10 +41,14 @@ class Obstacle:
         self.width = 50
         self.top_height = self.gap_y
         self.bottom_height = 500 - self.gap_y - self.gap
+        self.speed = 3  # Adjust the speed as needed
 
     def draw(self, g, camera_x):
         pygame.draw.rect(g, (37, 55, 101), (self.x - camera_x, 0, self.width, self.top_height), 0)
         pygame.draw.rect(g, (37, 55, 101), (self.x - camera_x, self.gap_y + self.gap, self.width, self.bottom_height), 0)
+
+    def update(self):
+        self.x -= self.speed
 
 class Game:
     def __init__(self, w, h):
@@ -86,11 +90,16 @@ class Game:
             last_obstacle = self.obstacles[-1]
             if self.player.x > last_obstacle.x + self.width // 2:
                 return True
+            # Check if player has passed through the obstacle
+            if self.player.x > last_obstacle.x + last_obstacle.width:
+                # Spawn new obstacle immediately after passing through
+                return True
         return False
 
     def run(self):
         clock = pygame.time.Clock()
         run = True
+        self.obstacles = self.generate_obstacles() 
         while run:
             clock.tick(60)
 
@@ -105,8 +114,6 @@ class Game:
 
             self.player.update()
             self.camera_x = self.player.x - self.width // 3
-
-            self.obstacles = self.generate_obstacles()
             
             if self.check_for_new_obstacle():
                 new_obstacles = self.generate_obstacles()
@@ -114,6 +121,7 @@ class Game:
 
             self.canvas.draw_background()
             for obstacle in self.obstacles:
+                obstacle.update()  # Update obstacle positions
                 obstacle.draw(self.canvas.get_canvas(), self.camera_x)
             self.player.draw(self.canvas.get_canvas(), self.camera_x)
 

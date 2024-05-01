@@ -10,7 +10,7 @@ PORT = 12345
 def generate_obstacles():
     obstacles = []
     for _ in range(3):
-        temp = 500 - 200 - 100
+        temp = 500 - 310
         obstacle_y = random.randint(100, temp)
         obstacle_height = 200  # Adjust according to your game screen size
         x = 50
