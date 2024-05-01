@@ -57,7 +57,7 @@ class Game:
         self.canvas = Canvas(self.width, self.height, "Flappy Bird")
         self.camera_x = 0
         self.last_obstacle_x = 0
-        self.server_address = ('127.0.0.1', 12345)
+        self.server_address = ('172.28.1.81', 12345)
 
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.client_socket.connect(self.server_address)

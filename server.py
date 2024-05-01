@@ -3,7 +3,7 @@ import random
 import pickle
 
 # Server configuration
-HOST = '127.0.0.1'
+HOST = '172.28.1.81'
 PORT = 12345
 
 # Function to generate obstacles

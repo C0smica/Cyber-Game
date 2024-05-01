@@ -3,7 +3,7 @@ import socket
 
 def check_server():
     # Checks if the server is running
-    server_address = ("172.28.1.81", 36695)
+    server_address = ("172.28.1.81", 12345)
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
         try:
             client_socket.connect(server_address)
