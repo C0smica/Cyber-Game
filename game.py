@@ -1,6 +1,7 @@
 import pygame
 from pygame.locals import *
 import random
+import socket
 
 class Player:
     width = height = 50
@@ -69,6 +70,12 @@ class Game:
         self.camera_x = 0
         self.last_obstacle_x = 0
 
+    def handle_blocked(self):
+        # Handle the blocked message from the server
+        print("You have been blocked from the server.")
+        # Implement any appropriate action, such as exiting the game
+        pygame.quit()
+
     def generate_obstacles(self):
         # Generates new obstacles.
         gap_y = random.randint(100, self.height - Obstacle.gap - 100)
@@ -105,6 +112,9 @@ class Game:
 
             self.player.update()
             self.camera_x = self.player.x - self.width // 3
+
+            # Check for blocked message from the server
+            # (Assuming this is handled outside the game loop)
 
             if random.randint(0, 100) < 2:
                 self.generate_obstacles()

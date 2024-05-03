@@ -99,7 +99,8 @@ while True:
                 conn.sendall(str.encode("Server full."))
                 conn.close()
         else:
-            conn.sendall(str.encode("Too many connection attempts."))
+            print("Blocked IP:", ip)
+            conn.sendall(str.encode("Blocked"))  # Send blocked message
             conn.close()
 
     except Exception as e:
