@@ -1,49 +1,70 @@
 import socket
+from _thread import *
+import sys
 import random
-import pickle
 
-# Server configuration
-HOST = '172.28.1.81'
-PORT = 12345
+server_ip = "172.28.3.71"
+server_port = 36695
+server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-# Function to generate obstacles
-def generate_obstacles():
-    obstacles = []
-    for _ in range(3):
-        temp = 500 - 310
-        obstacle_y = random.randint(100, temp)
-        obstacle_height = 200  # Adjust according to your game screen size
-        x = 50
-        obstacles.append((x, obstacle_y, obstacle_height))
-    return obstacles
+try:
+    server_socket.bind((server_ip, server_port))
+except Exception as e:
+    print("Failed to bind socket:", e)
+    sys.exit()
+
+server_socket.listen(30)
+print("Waiting for a connection")
+current_id = "0"
+positions = ["0:50,50", "1:100,100"]
 
 def threaded_client(conn):
+    global current_id, positions
+    conn.sendall(str.encode(current_id))
+    current_id = "1"
     while True:
         try:
-            obstacles = generate_obstacles()
-            obstacles_data = pickle.dumps(obstacles)
-            conn.sendall(obstacles_data)
-            ack = conn.recv(1024)  # Wait for acknowledgement from client
-            if not ack:
+            data = conn.recv(2048)
+            if not data:
+                conn.sendall(str.encode("Goodbye"))
                 break
-        except Exception as e:
-            print("Error in threaded_client:", e)
+            else:
+                message = data.decode('utf-8')
+                print("Received:", message)
+
+                if message == "generate_obstacles":
+                    gap_y = random.randint(100, 400)
+                    x = random.randint(200, 600)
+                    reply = f"{gap_y}:{x}"
+                    print("Generated obstacle data:", reply)
+                    conn.sendall(str.encode(reply))
+                elif message == "check_collision":
+                    reply = "collision"
+                    conn.sendall(str.encode(reply))
+                elif message == "update_score":
+                    reply = "increment_score"
+                    conn.sendall(str.encode(reply))
+                else:
+                    print("Invalid message:", message)
+                    conn.sendall(str.encode("Invalid message"))
+
+        except (socket.error, ConnectionResetError) as e:
+            print("Socket error:", e)
+            # Continue listening for new messages even if a socket error occurs
+            break
+        except Exception as ex:
+            print("Error:", ex)
+            # Continue listening for new messages even if an unexpected error occurs
             break
 
     print("Connection closed")
     conn.close()
 
-def main():
-    # Create a socket
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
-        server_socket.bind((HOST, PORT))
-        server_socket.listen(30)
-        print("Server is listening...")
-
-        while True:
-            conn, addr = server_socket.accept()
-            print("Connected to:", addr)
-            threaded_client(conn)
-
-if __name__ == "__main__":
-    main()
+while True:
+    try:
+        conn, addr = server_socket.accept()
+        print("Connected to:", addr)
+        start_new_thread(threaded_client, (conn,))
+    except Exception as e:
+        print("Connection error:", e)
+        # Continue accepting new connections even if an error occurs

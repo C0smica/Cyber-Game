@@ -1,7 +1,6 @@
 import pygame
 from pygame.locals import *
-import socket
-import pickle
+import random
 
 class Player:
     width = height = 50
@@ -17,15 +16,19 @@ class Player:
         self.color = color
 
     def draw(self, g, camera_x):
+        # Draws the player on the screen.
         pygame.draw.rect(g, self.color, (self.x - camera_x, self.y, self.width, self.height), 0)
 
     def jump(self):
+        # Handles player jumping.
         self.velocity_y = self.jump_velocity
 
     def update(self):
+        # Updates player position and applies gravity.
         self.velocity_y += self.gravity
         self.y += self.velocity_y
 
+        # Collision detection with top and bottom boundaries
         if self.y >= 500 - self.height:
             self.y = 500 - self.height
             self.velocity_y = 0
@@ -34,21 +37,26 @@ class Player:
             self.velocity_y = 0
 
 class Obstacle:
-    def __init__(self, x, gap_y, gap):
+    width = 50
+    gap = 200  # Gap between top and bottom obstacles
+
+    def __init__(self, x, gap_y):
         self.x = x
         self.gap_y = gap_y
-        self.gap = gap
-        self.width = 50
         self.top_height = self.gap_y
         self.bottom_height = 500 - self.gap_y - self.gap
-        self.speed = 3  # Adjust the speed as needed
 
     def draw(self, g, camera_x):
+        # Draws the obstacle on the screen.
         pygame.draw.rect(g, (37, 55, 101), (self.x - camera_x, 0, self.width, self.top_height), 0)
         pygame.draw.rect(g, (37, 55, 101), (self.x - camera_x, self.gap_y + self.gap, self.width, self.bottom_height), 0)
 
-    def update(self):
-        self.x -= self.speed
+    def collide(self, player):
+        # Checks collision between player and obstacle.
+        if (player.x + player.width >= self.x and player.x <= self.x + self.width) and (
+                player.y <= self.top_height or player.y + player.height >= self.gap_y + self.gap):
+            return True
+        return False
 
 class Game:
     def __init__(self, w, h):
@@ -56,50 +64,31 @@ class Game:
         self.height = h
         self.player = Player(50, h // 2)
         self.obstacles = []
-        self.score = 0
-        self.canvas = Canvas(self.width, self.height, "Flappy Bird")
+        self.score = 0  # Initialize score to zero
+        self.canvas = Canvas(self.width, self.height, "Sky Jumper") #Cool name
         self.camera_x = 0
         self.last_obstacle_x = 0
-        self.server_address = ('172.28.1.81', 12345)
-
-        self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.client_socket.connect(self.server_address)
-
-    def send_message(self, message):
-        try:
-            self.client_socket.sendall(message.encode())
-            data = self.client_socket.recv(4096)
-            return pickle.loads(data)
-        except Exception as e:
-            print("Error sending/receiving data:", e)
-            return None
 
     def generate_obstacles(self):
-        obstacles_data = self.send_message("generate_obstacles")
-        obstacles = []
-        if obstacles_data:
-            for obstacle_info in obstacles_data:
-                x, gap_y, gap = obstacle_info
-                # Adjust x-coordinate to the right of the player
-                x += self.width // 2
-                obstacles.append(Obstacle(x, gap_y, gap))
-        return obstacles
-    
-    def check_for_new_obstacle(self):
-        if self.obstacles:
-            last_obstacle = self.obstacles[-1]
-            if self.player.x > last_obstacle.x + self.width // 2:
-                return True
-            # Check if player has passed through the obstacle
-            if self.player.x > last_obstacle.x + last_obstacle.width:
-                # Spawn new obstacle immediately after passing through
-                return True
-        return False
+        # Generates new obstacles.
+        gap_y = random.randint(100, self.height - Obstacle.gap - 100)
+        min_x = max(self.width // 2, self.last_obstacle_x + 150)  # Ensure obstacle appears within visible area
+        x = min_x + random.randint(5, 10)  # Smaller distance between obstacles
+        self.obstacles.append(Obstacle(x, gap_y))
+        self.last_obstacle_x = x
+
+    def restart(self):
+        # Resets the game.
+        self.player.x = self.player.startx
+        self.player.y = self.player.starty
+        self.obstacles.clear()
+        self.score = 0  # Reset score to zero
+        self.last_obstacle_x = 0
 
     def run(self):
+        # Main game loop.
         clock = pygame.time.Clock()
         run = True
-        self.obstacles = self.generate_obstacles() 
         while run:
             clock.tick(60)
 
@@ -111,19 +100,40 @@ class Game:
                         run = False
                     if event.key == K_SPACE:
                         self.player.jump()
+                    if event.key == K_r:
+                        self.restart()
 
             self.player.update()
             self.camera_x = self.player.x - self.width // 3
-            
-            if self.check_for_new_obstacle():
-                new_obstacles = self.generate_obstacles()
-                self.obstacles.extend(new_obstacles)
+
+            if random.randint(0, 100) < 2:
+                self.generate_obstacles()
+
+            for obstacle in self.obstacles:
+                if obstacle.collide(self.player):
+                    self.restart()
+                    break
+
+            for obstacle in self.obstacles:
+                if self.player.x > obstacle.x + obstacle.width and self.player.x < obstacle.x + obstacle.width + 2:
+        # Increment score if player successfully passed an obstacle
+                    self.score += 1
+
+
+            # Update obstacle positions
+            for obstacle in self.obstacles:
+                obstacle.x -= 2
+
+            # Remove obstacles that are far enough past the visible area
+            self.obstacles = [obstacle for obstacle in self.obstacles if obstacle.x + obstacle.width > -200]
 
             self.canvas.draw_background()
             for obstacle in self.obstacles:
-                obstacle.update()  # Update obstacle positions
                 obstacle.draw(self.canvas.get_canvas(), self.camera_x)
             self.player.draw(self.canvas.get_canvas(), self.camera_x)
+
+            # Display score on the screen
+            self.canvas.draw_text("Score: " + str(self.score), 20, 10, 10)
 
             self.canvas.update()
 
@@ -137,17 +147,26 @@ class Canvas:
         pygame.display.set_caption(name)
 
     def update(self):
+        # Updates the display.
         pygame.display.update()
 
     def draw_background(self):
+        # Draws the background.
         self.screen.fill((135, 206, 250))
 
+    def draw_text(self, text, size, x, y):
+        pygame.font.init()
+        font = pygame.font.SysFont("comicsans", size)
+        render = font.render(text, 1, (255, 255, 255))
+        self.screen.blit(render, (x, y))
+
     def get_canvas(self):
+        # Returns the screen.
         return self.screen
 
 def main():
     pygame.init()
-    game = Game(800, 500)
+    game = Game(800, 500)  # Adjusted height to 500px
     game.run()
 
 if __name__ == "__main__":
